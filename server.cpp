@@ -110,7 +110,7 @@ void *myGet(void *arguments)
       }
 
       //TODO: Write the accessCount instead of the ID
-      write(args->sa, token, 3);
+      write(args->sa, token, strlen(token));
       returnThreadIndex(args->tidx);
       close(args->sa);
       pthread_exit(NULL);
