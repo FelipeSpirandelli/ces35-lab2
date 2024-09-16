@@ -26,7 +26,7 @@ int lastAccess = -1;
 struct my_get_args
 {
    int sa;
-   char *filename;
+   //char *request;
    int tidx;
 };
 
@@ -70,29 +70,124 @@ void returnThreadIndex(int idx)
 void *myGet(void *arguments)
 {
    my_get_args *args = (my_get_args *)arguments;
-   char buf[BUF_SIZE];
+   char request_buf[BUF_SIZE];
+   char response_buf[BUF_SIZE];
    /* Get and return the file. */
 
-   char buffer[50];
-   int length = sprintf(buffer, "Reading file %s\n", args->filename);
-   write(1, buffer, length);
+   read(args->sa, request_buf, BUF_SIZE); /* read file name from socket */
 
-   int fd = open(args->filename, O_RDONLY); /* open the file to be sent back */
-   if (fd < 0)
-      printf("open failed");
-   write(1, "Open of file was successful\n", 28);
-   while (1)
-   {
-      int bytes = read(fd, buf, BUF_SIZE); /* read from file */
-      if (bytes <= 0)
-         break; /* check for end of file */
-      write(1, "Wrote bytes to socket\n", 23);
-      write(args->sa, buf, bytes); /* write bytes to socket */
+   char buffer[100];
+   strncpy(buffer, request_buf, sizeof(buffer) - 1);
+   buffer[sizeof(buffer) - 1] = '\0';
+
+   char* token = strtok(buffer, " \n");
+   if (token == NULL) {
+      write(args->sa, "Bad Request", 12);
+      returnThreadIndex(args->tidx);
+      close(args->sa);
+      pthread_exit(NULL);
    }
-   close(fd); /* close file */
-   returnThreadIndex(args->tidx);
-   close(args->sa);
-   pthread_exit(NULL);
+
+   //HANDLING THE PROTOCOLS
+   if (!strcmp(token, "MyLastAccess")) {
+      write(1, "Handling LastAccess Request...\n", 32);
+      token = strtok(NULL, " \n");
+      if (token == NULL) {
+         write(args->sa, "Bad Request, no user ID\n", 25);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      }
+      if (strcmp(token, "ID")) {
+         write(args->sa, "Bad Request, no ID field\n", 26);
+      }
+      token = strtok(NULL, " \n");
+      if (token == NULL) {
+         write(args->sa, "Bad Request, no user ID\n", 25);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      }
+
+      //TODO: Write the accessCount instead of the ID
+      write(args->sa, token, 3);
+      returnThreadIndex(args->tidx);
+      close(args->sa);
+      pthread_exit(NULL);
+   }
+
+   else if (!strcmp(token, "MyGet")) {
+      write(1,"Handling MyGet Request...\n", 27);
+      token = strtok(NULL, " \n"); //get the next word
+      if (token == NULL) {
+         write(args->sa, "Bad MyGet Request, no URL field\n", 33);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      }
+      if (strcmp(token, "ID")) {
+         write(args->sa, "Bad MyGet Request, no ID field\n", 32);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      }
+      token = strtok(NULL, " \n");
+      // Here, token should be the ID. TODO: Increment the counter for that ID
+      if (token == NULL) {
+         write(args->sa, "Bad MyGet Request, no user ID\n", 31);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      }
+
+      token = strtok(NULL, " \n");
+
+      if (!strcmp(token, "URL")) {
+         write(1, "Reading URL field...\n", 21);
+         token = strtok(NULL, " \n");
+         if (token == NULL) {
+            write(args->sa, "Bad MyGet Request, no URL provided in the URL field\n", 53);
+            returnThreadIndex(args->tidx);
+            close(args->sa);
+            pthread_exit(NULL);
+         }
+
+         // find the file
+         int fd = open(token, O_RDONLY); /* open the file to be sent back */
+         if (fd < 0) {
+            write(1, "Failed to locate the file, closing the connection\n", 51);
+            write(args->sa, "File was not found\n", 20);
+            returnThreadIndex(args->tidx);
+            close(args->sa);
+            pthread_exit(NULL);
+         }
+
+         write(1, "File successfully opened\n", 26);
+         while (1) {
+            int bytes = read(fd, response_buf, BUF_SIZE); /* read from file */
+            if (bytes <= 0)
+               break; /* check for end of file */
+            write(1, "Wrote bytes to socket\n", 23);
+            write(args->sa, response_buf, bytes); /* write bytes to socket */
+         }
+         close(fd);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      } else {
+         write(args->sa, "Unexpected field\n", 18);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      }
+   }
+
+   else { // NO PROTOCOL MATCH
+      write(args->sa, "Incorrect usage of protocol", 28);
+      returnThreadIndex(args->tidx);
+      close(args->sa);
+      pthread_exit(NULL);
+   }
 }
 
 void init_threads()
@@ -122,7 +217,6 @@ int main(int argc, char *argv[])
    int s, b, l, sa, on = 1;
    pthread_t file_thread[N_THREADS];
    init_threads();
-   char buf[BUF_SIZE];         /* buffer for outgoing file */
    struct sockaddr_in channel; /* holds IP address */
    /* Build address structure to bind to socket. */
    memset(&channel, 0, sizeof(channel));
@@ -155,7 +249,7 @@ int main(int argc, char *argv[])
    /* Socket is now set up and bound. Wait for connection and process it. */
    while (1)
    {
-      write(1, "Accepting connections\n", 22);
+      write(1, "Accepting connections...\n", 26);
       sa = accept(s, 0, 0); /* block for connection request */
       if (sa < 0)
       {
@@ -163,17 +257,15 @@ int main(int argc, char *argv[])
          exit(-1);
       }
 
-      write(1, "Connection accepted\n", 21);
 
-      read(sa, buf, BUF_SIZE); /* read file name from socket */
       int idx = getLastThreadIndex();
+
+      write(1, "Connection accepted\n", 21);
       my_get_args *arguments = (my_get_args *)malloc(sizeof(my_get_args));
       if (arguments != NULL)
       {
          // Initialize the structure
          arguments->sa = sa;
-         // TODO - CHANGE FILENAME TO A SEPARATE BUFFER, OTHERWISE PARALLELISM IS IMPOSSIBLE
-         arguments->filename = buf;
          arguments->tidx = idx;
       }
       pthread_create(&file_thread[idx], NULL, myGet, (void *)arguments);

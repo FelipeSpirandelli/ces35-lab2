@@ -14,17 +14,19 @@ Example: ./client localhost teste.html
 
 #define SERVER_PORT 8080 /* arbitrary, but client & server must agree */
 #define BUFSIZE 4096     /* block transfer size */
+#define REQUESTSIZE 100
 
 // argv -> host name, filename
 int main(int argc, char **argv)
 {
   int c, s, bytes;
+  char request[REQUESTSIZE];
   char buf[BUFSIZE];          /* buffer for incoming file */
   struct hostent *h;          /* info about server */
   struct sockaddr_in channel; /* holds IP address */
-  if (argc != 3)
+  if (argc < 4)
   {
-    printf("Usage: client server-name file-name\n");
+    printf("Usage: client <server-name> <user-id> <options>\n");
     exit(-1);
   }
   h = gethostbyname(argv[1]); /* look up host’s IP address */
@@ -51,8 +53,26 @@ int main(int argc, char **argv)
     exit(-1);
   }
   /* Connection is now established. Send file name including 0 byte at end. */
-  write(s, argv[2], strlen(argv[2]) + 1);
-  write(1, "Write was successful\n", 21);
+
+  // Now send the request
+  if (!strcmp(argv[3], "-f")) { // myget request
+    strcpy(request, "MyGet");
+    strcat(request, "\nID ");
+    strcat(request, argv[2]);
+    strcat(request, "\nURL ");
+    strcat(request, argv[4]);
+    write(1, "Sending MyGet Request: \n\n", 25);
+    write(1, request, strlen(request));
+  }
+  if (!strcmp(argv[3], "-n")) {
+    strcpy(request, "MyLastAccess\n");
+    strcat(request, "ID ");
+    strcat(request, argv[2]);
+    write(1, "Sending MyLastAccess Request: \n\n", 33);
+    write(1, request, strlen(request));
+  }
+  write(s, request, strlen(request));
+  write(1, "\n\nRequest successfully sent\n\n", 30);
 
   /* Go get the file and write it to standard output.*/
   while (1)
@@ -62,7 +82,8 @@ int main(int argc, char **argv)
     {
       exit(0); /* check for end of file */
     }
-    write(1, "Read success\n", 14);
+    write(1, "Received Response from server:\n\n", 33);
     write(1, buf, bytes); /* write to standard output */
+    write(1,"\n",2);
   }
 }
