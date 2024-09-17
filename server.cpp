@@ -115,6 +115,12 @@ void *myGet(void *arguments)
 
       //TODO: Write the accessCount instead of the ID
       int id = atoi(token);
+      if (id == 0) {
+         write(args->sa, "ID must be a positive integer\n", 31);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      }
       if (userAccess.find(id) == userAccess.end()) {
          userAccess[id] = 0;
       }
@@ -146,6 +152,12 @@ void *myGet(void *arguments)
       token = strtok(NULL, " \n");
       // Here, token should be the ID. TODO: Increment the counter for that ID
       int id = atoi(token);
+      if (id == 0) {
+         write(args->sa, "ID must be a positive integer\n", 31);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      }
       if (userAccess.find(id) == userAccess.end()) {
          userAccess[id] = 0;
       }
