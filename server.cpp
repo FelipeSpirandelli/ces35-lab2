@@ -1,7 +1,3 @@
-// TODOS are marked as TODO
-// TODO - ORGANIZE CODE BETTER
-// TODO - create route handler
-
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
@@ -29,7 +25,7 @@ map<uint, uint> userAccess;
 struct my_get_args
 {
    int sa;
-   //char *request;
+   // char *request;
    int tidx;
 };
 
@@ -83,87 +79,98 @@ void *myGet(void *arguments)
    strncpy(buffer, request_buf, sizeof(buffer) - 1);
    buffer[sizeof(buffer) - 1] = '\0';
 
-   char* token = strtok(buffer, " \n");
-   if (token == NULL) {
+   char *token = strtok(buffer, " \n");
+   if (token == NULL)
+   {
       write(args->sa, "Bad Request", 12);
       returnThreadIndex(args->tidx);
       close(args->sa);
       pthread_exit(NULL);
    }
 
-   //HANDLING THE PROTOCOLS
-   if (!strcmp(token, "MyLastAccess")) {
+   // HANDLING THE PROTOCOLS
+   if (!strcmp(token, "MyLastAccess"))
+   {
       write(1, "Handling LastAccess Request...\n", 32);
       token = strtok(NULL, " \n");
-      if (token == NULL) {
-         write(args->sa, "Bad Request, no user ID\n", 25);
-         returnThreadIndex(args->tidx);
-         close(args->sa);
-         pthread_exit(NULL);
-      }
-      
-      if (strcmp(token, "ID")) {
-         write(args->sa, "Bad Request, no ID field\n", 26);
-      }
-      token = strtok(NULL, " \n");
-      if (token == NULL) {
+      if (token == NULL)
+      {
          write(args->sa, "Bad Request, no user ID\n", 25);
          returnThreadIndex(args->tidx);
          close(args->sa);
          pthread_exit(NULL);
       }
 
-      //TODO: Write the accessCount instead of the ID
+      if (strcmp(token, "ID"))
+      {
+         write(args->sa, "Bad Request, no ID field\n", 26);
+      }
+      token = strtok(NULL, " \n");
+      if (token == NULL)
+      {
+         write(args->sa, "Bad Request, no user ID\n", 25);
+         returnThreadIndex(args->tidx);
+         close(args->sa);
+         pthread_exit(NULL);
+      }
+
       int id = atoi(token);
-      if (id == 0) {
+      if (id == 0)
+      {
          write(args->sa, "ID must be a positive integer\n", 31);
          returnThreadIndex(args->tidx);
          close(args->sa);
          pthread_exit(NULL);
       }
-      if (userAccess.find(id) == userAccess.end()) {
+      if (userAccess.find(id) == userAccess.end())
+      {
          userAccess[id] = 0;
       }
       char countStr[50];
       sprintf(countStr, "%d", userAccess[id]);
       write(args->sa, countStr, strlen(token));
 
-      userAccess[id] ++;
+      userAccess[id]++;
       returnThreadIndex(args->tidx);
       close(args->sa);
       pthread_exit(NULL);
    }
 
-   else if (!strcmp(token, "MyGet")) {
-      write(1,"Handling MyGet Request...\n", 27);
-      token = strtok(NULL, " \n"); //get the next word
-      if (token == NULL) {
+   else if (!strcmp(token, "MyGet"))
+   {
+      write(1, "Handling MyGet Request...\n", 27);
+      token = strtok(NULL, " \n"); // get the next word
+      if (token == NULL)
+      {
          write(args->sa, "Bad MyGet Request, no URL field\n", 33);
          returnThreadIndex(args->tidx);
          close(args->sa);
          pthread_exit(NULL);
       }
-      if (strcmp(token, "ID")) {
+      if (strcmp(token, "ID"))
+      {
          write(args->sa, "Bad MyGet Request, no ID field\n", 32);
          returnThreadIndex(args->tidx);
          close(args->sa);
          pthread_exit(NULL);
       }
       token = strtok(NULL, " \n");
-      // Here, token should be the ID. TODO: Increment the counter for that ID
       int id = atoi(token);
-      if (id == 0) {
+      if (id == 0)
+      {
          write(args->sa, "ID must be a positive integer\n", 31);
          returnThreadIndex(args->tidx);
          close(args->sa);
          pthread_exit(NULL);
       }
-      if (userAccess.find(id) == userAccess.end()) {
+      if (userAccess.find(id) == userAccess.end())
+      {
          userAccess[id] = 0;
       }
-      userAccess[id] ++;
+      userAccess[id]++;
 
-      if (token == NULL) {
+      if (token == NULL)
+      {
          write(args->sa, "Bad MyGet Request, no user ID\n", 31);
          returnThreadIndex(args->tidx);
          close(args->sa);
@@ -172,10 +179,12 @@ void *myGet(void *arguments)
 
       token = strtok(NULL, " \n");
 
-      if (!strcmp(token, "URL")) {
+      if (!strcmp(token, "URL"))
+      {
          write(1, "Reading URL field...\n", 21);
          token = strtok(NULL, " \n");
-         if (token == NULL) {
+         if (token == NULL)
+         {
             write(args->sa, "Bad MyGet Request, no URL provided in the URL field\n", 53);
             returnThreadIndex(args->tidx);
             close(args->sa);
@@ -184,7 +193,8 @@ void *myGet(void *arguments)
 
          // find the file
          int fd = open(token, O_RDONLY); /* open the file to be sent back */
-         if (fd < 0) {
+         if (fd < 0)
+         {
             write(1, "Failed to locate the file, closing the connection\n", 51);
             write(args->sa, "File was not found\n", 20);
             returnThreadIndex(args->tidx);
@@ -193,7 +203,8 @@ void *myGet(void *arguments)
          }
 
          write(1, "File successfully opened\n", 26);
-         while (1) {
+         while (1)
+         {
             int bytes = read(fd, response_buf, BUF_SIZE); /* read from file */
             if (bytes <= 0)
                break; /* check for end of file */
@@ -204,7 +215,9 @@ void *myGet(void *arguments)
          returnThreadIndex(args->tidx);
          close(args->sa);
          pthread_exit(NULL);
-      } else {
+      }
+      else
+      {
          write(args->sa, "Unexpected field\n", 18);
          returnThreadIndex(args->tidx);
          close(args->sa);
@@ -212,7 +225,8 @@ void *myGet(void *arguments)
       }
    }
 
-   else { // NO PROTOCOL MATCH
+   else
+   { // NO PROTOCOL MATCH
       write(args->sa, "Incorrect usage of protocol", 28);
       returnThreadIndex(args->tidx);
       close(args->sa);
@@ -286,7 +300,6 @@ int main(int argc, char *argv[])
          printf("accept failed\n");
          exit(-1);
       }
-
 
       int idx = getLastThreadIndex();
 
