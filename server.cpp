@@ -13,6 +13,8 @@
 #include <netdb.h>
 #include <semaphore.h>
 #include <pthread.h>
+#include <map>
+using namespace std;
 
 #define SERVER_PORT 8080 /* arbitrary, but client & server must agree*/
 #define BUF_SIZE 4096    /* block transfer size */
@@ -22,6 +24,7 @@
 sem_t mutex, spots;
 int possibleThreadIndex[N_THREADS];
 int lastAccess = -1;
+map<uint, uint> userAccess;
 
 struct my_get_args
 {
@@ -98,6 +101,7 @@ void *myGet(void *arguments)
          close(args->sa);
          pthread_exit(NULL);
       }
+      
       if (strcmp(token, "ID")) {
          write(args->sa, "Bad Request, no ID field\n", 26);
       }
@@ -110,7 +114,15 @@ void *myGet(void *arguments)
       }
 
       //TODO: Write the accessCount instead of the ID
-      write(args->sa, token, strlen(token));
+      int id = atoi(token);
+      if (userAccess.find(id) == userAccess.end()) {
+         userAccess[id] = 0;
+      }
+      char countStr[50];
+      sprintf(countStr, "%d", userAccess[id]);
+      write(args->sa, countStr, strlen(token));
+
+      userAccess[id] ++;
       returnThreadIndex(args->tidx);
       close(args->sa);
       pthread_exit(NULL);
@@ -133,6 +145,12 @@ void *myGet(void *arguments)
       }
       token = strtok(NULL, " \n");
       // Here, token should be the ID. TODO: Increment the counter for that ID
+      int id = atoi(token);
+      if (userAccess.find(id) == userAccess.end()) {
+         userAccess[id] = 0;
+      }
+      userAccess[id] ++;
+
       if (token == NULL) {
          write(args->sa, "Bad MyGet Request, no user ID\n", 31);
          returnThreadIndex(args->tidx);

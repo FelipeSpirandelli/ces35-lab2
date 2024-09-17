@@ -1,5 +1,5 @@
 # Compiler to use
-CC = gcc
+CC = g++
 
 # Compiler flags
 CFLAGS = -Wall -Wextra -g
